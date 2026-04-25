@@ -8,7 +8,6 @@ If PADDLEOCR_API_TOKEN is empty, all requests are passed through (no auth).
 """
 
 import os
-import logging
 
 import httpx
 from fastapi import FastAPI, Request, Response, HTTPException
@@ -16,7 +15,12 @@ from fastapi import FastAPI, Request, Response, HTTPException
 UPSTREAM = "http://127.0.0.1:8080"
 API_TOKEN = os.environ.get("PADDLEOCR_API_TOKEN", "")
 
-logger = logging.getLogger("auth_proxy")
+_HOP_HEADERS = frozenset({
+    "transfer-encoding", "connection", "keep-alive",
+    "proxy-authenticate", "proxy-authorization", "te",
+    "trailers", "upgrade", "content-encoding", "content-length",
+})
+
 app = FastAPI()
 
 
@@ -32,7 +36,7 @@ async def token_gate(request: Request, call_next):
 @app.api_route("/{path:path}", methods=["GET", "POST", "OPTIONS", "HEAD"])
 async def proxy(request: Request, path: str):
     url = f"{UPSTREAM}/{path}"
-    headers = {
+    fwd_headers = {
         k: v for k, v in request.headers.items()
         if k.lower() not in ("host", "authorization")
     }
@@ -42,13 +46,18 @@ async def proxy(request: Request, path: str):
         resp = await client.request(
             method=request.method,
             url=url,
-            headers=headers,
+            headers=fwd_headers,
             content=body,
             params=request.query_params,
         )
 
+    resp_headers = {
+        k: v for k, v in resp.headers.items()
+        if k.lower() not in _HOP_HEADERS
+    }
     return Response(
         content=resp.content,
         status_code=resp.status_code,
-        headers=dict(resp.headers),
+        headers=resp_headers,
+        media_type=resp.headers.get("content-type"),
     )
