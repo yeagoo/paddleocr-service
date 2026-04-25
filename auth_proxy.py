@@ -7,7 +7,9 @@ before forwarding requests to PaddleX.
 If PADDLEOCR_API_TOKEN is empty, all requests are passed through (no auth).
 """
 
+import hmac
 import os
+from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI, Request, Response, HTTPException
@@ -21,35 +23,48 @@ _HOP_HEADERS = frozenset({
     "trailers", "upgrade", "content-encoding", "content-length",
 })
 
-app = FastAPI()
+_STRIP_REQUEST_HEADERS = frozenset({"host", "authorization", "accept-encoding"})
+
+_http_client: httpx.AsyncClient | None = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _http_client
+    _http_client = httpx.AsyncClient(timeout=660.0)
+    yield
+    await _http_client.aclose()
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.middleware("http")
 async def token_gate(request: Request, call_next):
     if API_TOKEN and request.url.path != "/health":
         auth = request.headers.get("authorization", "")
-        if auth != f"Bearer {API_TOKEN}":
+        expected = f"Bearer {API_TOKEN}"
+        if not hmac.compare_digest(auth.encode(), expected.encode()):
             raise HTTPException(status_code=401, detail="Unauthorized")
     return await call_next(request)
 
 
-@app.api_route("/{path:path}", methods=["GET", "POST", "OPTIONS", "HEAD"])
+@app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"])
 async def proxy(request: Request, path: str):
     url = f"{UPSTREAM}/{path}"
     fwd_headers = {
         k: v for k, v in request.headers.items()
-        if k.lower() not in ("host", "authorization")
+        if k.lower() not in _STRIP_REQUEST_HEADERS
     }
     body = await request.body()
 
-    async with httpx.AsyncClient(timeout=660.0) as client:
-        resp = await client.request(
-            method=request.method,
-            url=url,
-            headers=fwd_headers,
-            content=body,
-            params=request.query_params,
-        )
+    resp = await _http_client.request(
+        method=request.method,
+        url=url,
+        headers=fwd_headers,
+        content=body,
+        params=request.query_params,
+    )
 
     resp_headers = {
         k: v for k, v in resp.headers.items()
