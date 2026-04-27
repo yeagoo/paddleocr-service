@@ -1,11 +1,6 @@
 #!/bin/bash
 set -e
 
-# Disable PIR compiler + oneDNN — PaddlePaddle 3.3.x has a regression where
-# pir::ArrayAttribute<pir::DoubleAttribute> is not supported in oneDNN path
-export FLAGS_enable_pir_api=0
-export FLAGS_use_mkldnn=0
-
 cleanup() {
   echo "Shutting down..."
   kill "$PADDLEX_PID" 2>/dev/null || true

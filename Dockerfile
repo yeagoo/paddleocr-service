@@ -1,10 +1,7 @@
-FROM paddlepaddle/paddle:3.3.1
+FROM paddlepaddle/paddle:3.0.0
 
-# PaddlePaddle 3.3.x PIR compiler regression: oneDNN path crashes on
-# pir::ArrayAttribute<pir::DoubleAttribute> in PP-DocLayout_plus-L.
-# Disable both PIR and oneDNN to fall back to default CPU executor.
-ENV FLAGS_enable_pir_api=0
-ENV FLAGS_use_mkldnn=0
+# PaddlePaddle 3.3.x has a PIR+oneDNN regression that crashes layout detection.
+# Downgraded to 3.0.0 which has no PIR by default and stable oneDNN.
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
