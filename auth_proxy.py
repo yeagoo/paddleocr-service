@@ -12,7 +12,7 @@ import os
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI, Request, Response, HTTPException
+from fastapi import FastAPI, Request, Response
 
 UPSTREAM = "http://127.0.0.1:8080"
 API_TOKEN = os.environ.get("PADDLEOCR_API_TOKEN", "")
@@ -45,7 +45,7 @@ async def token_gate(request: Request, call_next):
         auth = request.headers.get("authorization", "")
         expected = f"Bearer {API_TOKEN}"
         if not hmac.compare_digest(auth.encode(), expected.encode()):
-            raise HTTPException(status_code=401, detail="Unauthorized")
+            return Response(content='{"detail":"Unauthorized"}', status_code=401, media_type="application/json")
     return await call_next(request)
 
 

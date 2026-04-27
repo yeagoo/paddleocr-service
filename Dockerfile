@@ -1,5 +1,9 @@
 FROM paddlepaddle/paddle:3.3.1
 
+# PaddlePaddle 3.3.x PIR compiler regression: oneDNN path crashes on
+# pir::ArrayAttribute<pir::DoubleAttribute> in PP-DocLayout_plus-L.
+ENV FLAGS_enable_pir_api=0
+
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
 # Install PaddleX 3.5.1 with OCR extras
