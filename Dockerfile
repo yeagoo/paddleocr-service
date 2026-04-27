@@ -1,7 +1,7 @@
-FROM ccr-2vdh3abv-pub.cnc.bj.baidubce.com/paddlex/hps:paddlex3.0.3-cpu
+FROM ccr-2vdh3abv-pub.cnc.bj.baidubce.com/paddlex/hps:paddlex3.4-cpu
 
-# Official PaddleX HPS image already includes PaddlePaddle 3.0.0 +
-# PaddleX + Serving plugin. No need for manual pip install.
+# Official PaddleX HPS image includes PaddlePaddle + PaddleX + Serving.
+# No manual pip install needed.
 
 # httpx for auth proxy (fastapi + uvicorn already in the image)
 RUN pip install --no-cache-dir httpx
